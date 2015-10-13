@@ -568,11 +568,23 @@ static void INA222_init(I2C_ID_T i2c, uint8_t address)
 
 static uint16_t INA222_readVolt(I2C_ID_T i2c, uint8_t address, bool raw) {
 	uint8_t ch[2];
+//	bool fmc2_12v_stat = false;
+
+//	if(address == 0x40)
+//	  fmc2_12v_stat = Chip_GPIO_ReadPortBit(LPC_GPIO, GPIO_EM_FMC2_P12V_PORT, GPIO_EM_FMC2_P12V_PIN);
+//
+//	if(fmc2_12v_stat == false)
+//	  Chip_GPIO_SetPinState(LPC_GPIO, GPIO_EM_FMC2_P12V_PORT, GPIO_EM_FMC2_P12V_PIN, true);
+
 	Chip_I2C_MasterCmdRead(i2c, address, INA220_BUS_REG, ch, 2);
 	uint16_t tmpVal = 0.0;
 	tmpVal = (0x1fE0 & (ch[0] << 5)) | (0x1f & (ch[1] >> 3));
 	if (raw == false)
 		tmpVal = tmpVal * 4;
+
+//	if(fmc2_12v_stat == false)
+//	  Chip_GPIO_SetPinState(LPC_GPIO, GPIO_EM_FMC2_P12V_PORT, GPIO_EM_FMC2_P12V_PIN, false);
+
 	return tmpVal;
 }
 
@@ -587,12 +599,16 @@ void vTaskSensor( void *pvParmeters )
     I2C_ID_T i2c_bus_id;
     uint8_t i2c_address;
 
-	if (afc_i2c_take_by_chipid(CHIP_ID_INA_0, &i2c_address,&i2c_bus_id, (TickType_t) 0 ) == pdTRUE ) {
-		INA222_init(i2c_bus_id, i2c_address);
-		afc_i2c_give(i2c_bus_id);
-	} else {
-		// fatal error
-	}
+    uint16_t del;
+
+    bool fmc2_12v_stat = false;
+
+    if (afc_i2c_take_by_chipid(CHIP_ID_INA_0, &i2c_address,&i2c_bus_id, (TickType_t) 0 ) == pdTRUE ) {
+            INA222_init(i2c_bus_id, i2c_address);
+            afc_i2c_give(i2c_bus_id);
+    } else {
+            // fatal error
+    }
 
     int i;
     for( ;; )
@@ -646,7 +662,6 @@ void vTaskSensor( void *pvParmeters )
 				}
 
 				if (new_flag != old_flag) {
-					/* todo add allocation check */
 	    		    struct ipmi_msg *pmsg = IPMI_alloc();
 	    		    struct ipmi_ipmb_addr *dst_addr =(struct ipmi_ipmb_addr *) &pmsg->daddr;
 	    		    struct ipmi_ipmb_addr *src_addr =(struct ipmi_ipmb_addr *) &pmsg->saddr;
@@ -674,7 +689,17 @@ void vTaskSensor( void *pvParmeters )
 			pSDR = (SDR_type_01h_t *) sensor_array[i].sdr;
 			pDATA = sensor_array[i].data;
 			if (pSDR->sensornum == NUM_SDR_FMC2_12V) {
+			        fmc2_12v_stat = Chip_GPIO_ReadPortBit(LPC_GPIO, GPIO_EM_FMC2_P12V_PORT, GPIO_EM_FMC2_P12V_PIN);
+			        if(fmc2_12v_stat == false) {
+			            Chip_GPIO_SetPinState(LPC_GPIO, GPIO_EM_FMC2_P12V_PORT, GPIO_EM_FMC2_P12V_PIN, true);
+
+			            for(del = 0; del < 10000; del++) {}
+			        }
+
 				pDATA->readout_value = INA222_readVolt(i2c_bus_id, 0x40, true) / 16;
+
+				if(fmc2_12v_stat == false)
+				        Chip_GPIO_SetPinState(LPC_GPIO, GPIO_EM_FMC2_P12V_PORT, GPIO_EM_FMC2_P12V_PIN, false);
 
 				if (pDATA->readout_value > pSDR->lower_noncritical_thr) {
 					payload_send_message(PAYLOAD_MESSAGE_P12GOOD);

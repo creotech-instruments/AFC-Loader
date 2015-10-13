@@ -77,27 +77,31 @@ void setDC_DC_ConvertersON(bool on) {
 //		Chip_GPIO_SetPinState(LPC_GPIO, 0, 17, on );
 
 
-	Chip_GPIO_SetPinState(LPC_GPIO, GPIO_EN_FMC1_PVADJ_PORT, GPIO_EN_FMC1_PVADJ_PIN, _on_fmc1);
-	Chip_GPIO_SetPinState(LPC_GPIO, GPIO_EM_FMC1_P12V_PORT, GPIO_EM_FMC1_P12V_PIN, _on_fmc1);
-	Chip_GPIO_SetPinState(LPC_GPIO, GPIO_EN_FMC1_P3V3_PORT, GPIO_EN_FMC1_P3V3_PIN, _on_fmc1);
+        Chip_GPIO_SetPinState(LPC_GPIO, GPIO_EN_FMC1_PVADJ_PORT, GPIO_EN_FMC1_PVADJ_PIN, _on_fmc1);
+        Chip_GPIO_SetPinState(LPC_GPIO, GPIO_EM_FMC1_P12V_PORT, GPIO_EM_FMC1_P12V_PIN, _on_fmc1);
+        Chip_GPIO_SetPinState(LPC_GPIO, GPIO_EN_FMC1_P3V3_PORT, GPIO_EN_FMC1_P3V3_PIN, _on_fmc1);
 
-	Chip_GPIO_SetPinState(LPC_GPIO, GPIO_EN_FMC2_PVADJ_PORT, GPIO_EN_FMC2_PVADJ_PIN, _on_fmc2);
-	Chip_GPIO_SetPinState(LPC_GPIO, GPIO_EM_FMC2_P12V_PORT, GPIO_EM_FMC2_P12V_PIN, _on_fmc2);
-	Chip_GPIO_SetPinState(LPC_GPIO, GPIO_EN_FMC2_P3V3_PORT, GPIO_EN_FMC2_P3V3_PIN, _on_fmc2);
+        Chip_GPIO_SetPinState(LPC_GPIO, GPIO_EN_FMC2_PVADJ_PORT, GPIO_EN_FMC2_PVADJ_PIN, _on_fmc2);
+        Chip_GPIO_SetPinState(LPC_GPIO, GPIO_EM_FMC2_P12V_PORT, GPIO_EM_FMC2_P12V_PIN, _on_fmc2);
+        Chip_GPIO_SetPinState(LPC_GPIO, GPIO_EN_FMC2_P3V3_PORT, GPIO_EN_FMC2_P3V3_PIN, _on_fmc2);
 
+        Chip_GPIO_SetPinState(LPC_GPIO, GPIO_EN_P1V0_PORT, GPIO_EN_P1V0_PIN, _on);
+        Chip_GPIO_SetPinState(LPC_GPIO, GPIO_EN_P1V8_PORT, GPIO_EN_P1V8_PIN, _on); // <- this one causes problems if not switched off before power loss
 
-	Chip_GPIO_SetPinState(LPC_GPIO, GPIO_EN_P1V0_PORT, GPIO_EN_P1V0_PIN, _on);
-	Chip_GPIO_SetPinState(LPC_GPIO, GPIO_EN_P1V8_PORT, GPIO_EN_P1V8_PIN, _on); // <- this one causes problems if not switched off before power loss
-
-	Chip_GPIO_SetPinState(LPC_GPIO, GPIO_EN_P1V2_PORT, GPIO_EN_P1V2_PIN, _on);
-	Chip_GPIO_SetPinState(LPC_GPIO, GPIO_EN_1V5_VTT_PORT, GPIO_EN_1V5_VTT_PIN, _on);
-	Chip_GPIO_SetPinState(LPC_GPIO, GPIO_EN_P3V3_PORT, GPIO_EN_P3V3_PIN, _on);
+        Chip_GPIO_SetPinState(LPC_GPIO, GPIO_EN_P1V2_PORT, GPIO_EN_P1V2_PIN, _on);
+        Chip_GPIO_SetPinState(LPC_GPIO, GPIO_EN_1V5_VTT_PORT, GPIO_EN_1V5_VTT_PIN, _on);
+        Chip_GPIO_SetPinState(LPC_GPIO, GPIO_EN_P3V3_PORT, GPIO_EN_P3V3_PIN, _on);
 
 //if (on)
 //		Chip_GPIO_SetPinState(LPC_GPIO, 0, 17, on );
-
 }
+
 void initializeDCDC() {
+        SPI_CONFIG_FORMAT_T spi_format;
+        SPI_DATA_SETUP_T spi_x_data;
+        uint16_t spi_tx_buf = 0x0128;
+        uint8_t spi_rx_buf[2];
+
 	setDC_DC_ConvertersON(false);
 	Chip_GPIO_SetPinDIR(LPC_GPIO, GPIO_EN_P1V2_PORT, GPIO_EN_P1V2_PIN, true);
 	Chip_GPIO_SetPinDIR(LPC_GPIO, GPIO_EN_P1V8_PORT, GPIO_EN_P1V8_PIN, true);
@@ -113,6 +117,51 @@ void initializeDCDC() {
 	Chip_GPIO_SetPinDIR(LPC_GPIO, GPIO_EN_P3V3_PORT, GPIO_EN_P3V3_PIN, true);
 	Chip_GPIO_SetPinDIR(LPC_GPIO, GPIO_EN_1V5_VTT_PORT, GPIO_EN_1V5_VTT_PIN, true);
 	Chip_GPIO_SetPinDIR(LPC_GPIO, GPIO_EN_P1V0_PORT, GPIO_EN_P1V0_PIN, true);
+
+        // Set VADJ DAC
+        Chip_GPIO_SetPinDIR(LPC_GPIO, 0, 21, true);
+        Chip_GPIO_SetPinState(LPC_GPIO, 0, 21, true);
+
+        /* Set up clock and muxing for SSP0 interface */
+        /*
+         * Initialize SSP0 pins connect
+         * P0.15: SCK
+         * P0.16: SSEL
+         * P0.18: MOSI
+         */
+        Chip_IOCON_PinMux(LPC_IOCON, 0, 15, IOCON_MODE_PULLUP, IOCON_FUNC3);
+        Chip_IOCON_PinMux(LPC_IOCON, 0, 16, IOCON_MODE_PULLUP, IOCON_FUNC0);
+        Chip_IOCON_PinMux(LPC_IOCON, 0, 18, IOCON_MODE_INACT, IOCON_FUNC3);
+
+        Chip_GPIO_SetPinDIR(LPC_GPIO, 0, 16, true);
+        Chip_GPIO_SetPinState(LPC_GPIO, 0, 16, true);
+
+        Chip_SPI_Init(LPC_SPI);
+        spi_format.bits = SPI_BITS_10;
+        spi_format.clockMode = SPI_CLOCK_CPHA0_CPOL0;
+        spi_format.dataOrder = SPI_DATA_MSB_FIRST;
+        Chip_SPI_SetFormat(LPC_SPI, &spi_format);
+        Chip_SPI_SetBitRate(LPC_SPI, 10000000);
+        Chip_SPI_SetMode(LPC_SPI, SPI_MODE_MASTER);
+
+        spi_x_data.cnt = 0;
+        spi_x_data.length = 2;
+        spi_x_data.pTxData = (uint8_t*) &spi_tx_buf;
+        spi_x_data.pRxData = spi_rx_buf;
+        spi_x_data.fnAftFrame = NULL;
+        spi_x_data.fnBefFrame = NULL;
+        spi_x_data.fnBefTransfer = NULL;
+        spi_x_data.fnAftTransfer = NULL;
+
+        Chip_GPIO_SetPinState(LPC_GPIO, 0, 16, false);
+        Chip_SPI_RWFrames_Blocking(LPC_SPI, &spi_x_data);
+        Chip_GPIO_SetPinState(LPC_GPIO, 0, 16, true);
+
+        spi_x_data.cnt = 0;
+        spi_tx_buf = 0x0028;
+        Chip_GPIO_SetPinState(LPC_GPIO, 0, 16, false);
+        Chip_SPI_RWFrames_Blocking(LPC_SPI, &spi_x_data);
+        Chip_GPIO_SetPinState(LPC_GPIO, 0, 16, true);
 }
 
 
@@ -147,6 +196,10 @@ void vTaskPayload(void *pvParmeters) {
 	TickType_t xLastWakeTime;
 	xLastWakeTime = xTaskGetTickCount();
 
+	// Setup Init_b as input
+	//Chip_GPIO_SetPinDIR(LPC_GPIO, 0, 19, false);
+	Chip_GPIO_SetPinDIR(LPC_GPIO, 0, 20, true);
+	Chip_GPIO_SetPinState(LPC_GPIO, 0, 20, true);
 
 	Chip_GPIO_SetPinDIR(LPC_GPIO, GPIO_PROGRAM_B_PORT, GPIO_PROGRAM_B_PIN, true);
 	Chip_GPIO_SetPinState(LPC_GPIO, GPIO_PROGRAM_B_PORT, GPIO_PROGRAM_B_PIN, true);
@@ -187,6 +240,7 @@ void vTaskPayload(void *pvParmeters) {
 				//Chip_GPIO_SetPinState(LPC_GPIO, GPIO_PROGRAM_B_PORT, GPIO_PROGRAM_B_PIN, true);
 				setDC_DC_ConvertersON(true);
 				new_state = PAYLOAD_POWER_GOOD_WAIT;
+				break;
 
 			case PAYLOAD_POWER_GOOD_WAIT:
 				if (P1V0_good == 1) {

@@ -150,8 +150,9 @@ int main(void) {
     SystemCoreClockUpdate();
     // Set up and initialize all required blocks and
     // functions related to the board hardware
-    Board_Init();
 
+    Board_Init();
+    Board_LED_Set(0, true);
     Board_LED_Set(1, true);
     initializeDCDC();
 #endif
@@ -182,8 +183,7 @@ int main(void) {
 	DEBUGOUT("This is free software, and you are welcome to redistribute it\r\n");
 	DEBUGOUT("under certain conditions;\r\n");
 
-
-    afc_board_discover();
+	afc_board_discover();
 
 //	NVIC_ClearPendingIRQ(EINT2_IRQn);
 //	NVIC_SetPriority(EINT2_IRQn, 0);
@@ -193,10 +193,9 @@ int main(void) {
 //	NVIC_EnableIRQ(EINT2_IRQn);
 
     Chip_GPIO_SetPinState(LPC_GPIO, 1, 22, false);
-	Chip_GPIO_SetPinDIR(LPC_GPIO, 1, 22, true);
-	//asm("nop");
-	Chip_GPIO_SetPinState(LPC_GPIO, 1, 22, true);
-
+    Chip_GPIO_SetPinDIR(LPC_GPIO, 1, 22, true);
+    //asm("nop");
+    Chip_GPIO_SetPinState(LPC_GPIO, 1, 22, true);
 
     IPMI_init();
     unsigned char ipmi_slave_addr = IPMB_init(I2C0);
@@ -216,16 +215,16 @@ int main(void) {
 
 
 #ifdef FREERTOS_CONFIG_H
-    TaskHandle_t xLedHandle = NULL;
+//    TaskHandle_t xLedHandle = NULL;
     TaskHandle_t xIPMIHandle = NULL;
     TaskHandle_t xSensorHandle = NULL;
     TaskHandle_t xPayloadHandle = NULL;
 
     do_quiesced_init();
 
-    xTaskCreate(LEDTask, "LED", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY, &xLedHandle );
+//    xTaskCreate(LEDTask, "LED", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY, &xLedHandle );
     xTaskCreate(vTaskIPMI, "IPMI", configMINIMAL_STACK_SIZE*5, NULL,  tskIDLE_PRIORITY, &xIPMIHandle );
-    xTaskCreate(vTaskSensor, "Sensor", configMINIMAL_STACK_SIZE, NULL,  tskIDLE_PRIORITY, &xSensorHandle );
+    xTaskCreate(vTaskSensor, "Sensor", configMINIMAL_STACK_SIZE*2, NULL,  tskIDLE_PRIORITY, &xSensorHandle );
     xTaskCreate(vTaskPayload, "Payload", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY, &xPayloadHandle);
 
     vTaskStartScheduler();

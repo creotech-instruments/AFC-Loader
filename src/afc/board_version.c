@@ -124,7 +124,6 @@ struct i2c_chip_mapping i2c_chip_map[] = {
 		{CHIP_ID_RTC_EEPROM, I2C_BUS_CPU_ID, 0x57},
 		{CHIP_ID_EEPROM,     I2C_BUS_CPU_ID, 0x50},
 		{CHIP_ID_EEPROM_ID,  I2C_BUS_CPU_ID, 0x58},
-		{CHIP_ID_EEPROM_PSWP,I2C_BUS_CPU_ID, 0x30},
 
 		{CHIP_ID_INA_0,      I2C_BUS_CPU_ID, 0x40},
 		{CHIP_ID_INA_1,      I2C_BUS_CPU_ID, 0x41},
@@ -134,7 +133,7 @@ struct i2c_chip_mapping i2c_chip_map[] = {
 		{CHIP_ID_INA_5,      I2C_BUS_CPU_ID, 0x45},
 
 		{CHIP_ID_ADN,	     I2C_BUS_CLOCK_ID, 0x4B},
-		{CHIP_ID_SI57x,		 I2C_BUS_CLOCK_ID, 0x55},
+		{CHIP_ID_SI57x,		 I2C_BUS_CLOCK_ID, 0x30},
 
 		{CHIP_ID_EEPROM_FMC1,	     I2C_BUS_FMC1_ID, 0x4B},
 		{CHIP_ID_EEPROM_FMC2,		 I2C_BUS_FMC2_ID, 0x30},
@@ -195,6 +194,8 @@ void afc_board_discover()
 {
 	//@todo: discover board revision
 	unsigned char tx_params[1];
+	unsigned char board_mac[16];
+
 	tx_params[0] = 0xF0 ; // Protected eeprom address
 
 	I2C_XFER_T xfer = { 0 };
@@ -231,11 +232,20 @@ void afc_board_discover()
 	} else {
 		DEBUGOUT("BoardManufactured CRC fail\r\n");
 
-
-
 //	DEBUGOUT("carrier type: 0x%02X\r\n", afc_board_info.carrier_version);
 	//@todo: discover i2c layout if fai;
 	}
+
+        // Read and display unique MAC number from external EEPROM
+        tx_params[0] = 0x80;
+        xfer.slaveAddr = 0xB0;
+        xfer.rxBuff = (uint8_t*) board_mac;
+        xfer.rxSz = 16;
+
+        while (Chip_I2C_MasterTransfer(I2C1, &xfer) == I2C_STATUS_ARBLOST) {
+        }
+
+        DEBUGOUT("\r\nAFC/AFCK MAC address: 0x%X\r\n", board_mac);
 }
 
 void afc_get_manufacturing_info(struct manufacturing_info_raw *p_board_info)
