@@ -129,14 +129,15 @@ void initializeDCDC() {
          * P0.16: SSEL
          * P0.18: MOSI
          */
-        Chip_IOCON_PinMux(LPC_IOCON, 0, 15, IOCON_MODE_PULLUP, IOCON_FUNC3);
-        Chip_IOCON_PinMux(LPC_IOCON, 0, 16, IOCON_MODE_PULLUP, IOCON_FUNC0);
-        Chip_IOCON_PinMux(LPC_IOCON, 0, 18, IOCON_MODE_INACT, IOCON_FUNC3);
+//        Chip_IOCON_PinMux(LPC_IOCON, 0, 15, IOCON_MODE_PULLUP, IOCON_FUNC3);
+//        Chip_IOCON_PinMux(LPC_IOCON, 0, 16, IOCON_MODE_PULLUP, IOCON_FUNC0);
+//        Chip_IOCON_PinMux(LPC_IOCON, 0, 18, IOCON_MODE_INACT, IOCON_FUNC3);
+//
+//        Chip_GPIO_SetPinDIR(LPC_GPIO, 0, 16, true);
+//        Chip_GPIO_SetPinState(LPC_GPIO, 0, 16, true);
 
-        Chip_GPIO_SetPinDIR(LPC_GPIO, 0, 16, true);
-        Chip_GPIO_SetPinState(LPC_GPIO, 0, 16, true);
-
-        Chip_SPI_Init(LPC_SPI);
+//        Chip_SPI_Init(LPC_SPI);
+        // Setup VADJ to 2.5 V;
         spi_format.bits = SPI_BITS_10;
         spi_format.clockMode = SPI_CLOCK_CPHA0_CPOL0;
         spi_format.dataOrder = SPI_DATA_MSB_FIRST;
@@ -153,15 +154,15 @@ void initializeDCDC() {
         spi_x_data.fnBefTransfer = NULL;
         spi_x_data.fnAftTransfer = NULL;
 
-        Chip_GPIO_SetPinState(LPC_GPIO, 0, 16, false);
+        Board_SPI_AssertSSEL();
         Chip_SPI_RWFrames_Blocking(LPC_SPI, &spi_x_data);
-        Chip_GPIO_SetPinState(LPC_GPIO, 0, 16, true);
+        Board_SPI_DeassertSSEL();
 
         spi_x_data.cnt = 0;
         spi_tx_buf = 0x0028;
-        Chip_GPIO_SetPinState(LPC_GPIO, 0, 16, false);
+        Board_SPI_AssertSSEL();
         Chip_SPI_RWFrames_Blocking(LPC_SPI, &spi_x_data);
-        Chip_GPIO_SetPinState(LPC_GPIO, 0, 16, true);
+        Board_SPI_DeassertSSEL();
 }
 
 

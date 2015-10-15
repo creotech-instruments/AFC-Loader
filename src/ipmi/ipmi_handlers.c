@@ -26,6 +26,9 @@
 #include "fru.h"
 #include "sdr.h"
 #include "payload.h"
+#include "led.h"
+
+//#include "task.h"
 /*
 ipmiProcessFunc ipmi_picmg_cmd_get_telco_alarm_capability(struct ipmi_msg *req, struct ipmi_msg* rsp)
 {
@@ -86,14 +89,76 @@ void ipmi_picmg_cmd_fru_control(struct ipmi_msg *req, struct ipmi_msg* rsp) {
 	rsp->retcode = IPMI_CC_OK;
 }
 
-
 void ipmi_picmg_set_fru_led_state(struct ipmi_msg *req, struct ipmi_msg* rsp){
 	int len = rsp->msg.data_len;
-	rsp->msg_data[len++] = IPMI_PICMG_GRP_EXT;                            // Device ID
-	rsp->msg.data_len = len;
-    rsp->retcode = IPMI_CC_OK;
+	led_error error;
+	const LED_activity_desc_t * pLEDact;
+	LED_activity_desc_t LEDact;
+	pLEDact = &LEDact;
+
+	switch (req->msg_data[3]) {
+        case 0x00:
+            /* OFF override */
+            pLEDact = &LED_Off_Activity;
+            break;
+        case 0xFF:
+            /* ON override */
+            pLEDact = &LED_On_Activity;
+            break;
+        case 0xFB:
+            /* Lamp Test */
+            /*! @todo Put the lamp test as a higher priority action, not a type of override */
+            LEDact.action = LED_ACTV_BLINK;
+            LEDact.initstate = LED_ON_STATE;
+            /* On duration in 100ms units */
+            LEDact.delay_init = req->msg_data[4] * 100;
+            /* Set the toggle delay to 0, so we know its a "single-shot" descriptor, so the LED module should revert to its override/local_control state later */
+            LEDact.delay_tog = 0;
+            break;
+        case 0xFC:
+            /* Local state */
+            pLEDact = NULL;
+            break;
+        case 0xFD:
+        case 0xFE:
+            /* Reserved */
+            break;
+        default:
+            /* Blink Override */
+            LEDact.action = LED_ACTV_BLINK;
+            LEDact.initstate = LED_ON_STATE;
+            /* On duration in 10ms units */
+            LEDact.delay_init = req->msg_data[4] / 10;
+            /* Off duration in 10ms units*/
+            LEDact.delay_tog = req->msg_data[3] / 10;
+            break;
+        }
+
+        /* If this function does not block, we can't assure we have programmed the LED correctly, but if it does, there's the risk that this task won't kill itself and we'll run out of heap space */
+        error = LED_update( req->msg_data[2], pLEDact );
+
+        switch (error) {
+        case led_success:
+            rsp->retcode = IPMI_CC_OK;
+            break;
+        case led_invalid_argument:
+            rsp->retcode = IPMI_CC_INV_DATA_FIELD_IN_REQ;
+            break;
+        case led_unspecified_error:
+            rsp->retcode = IPMI_CC_UNSPECIFIED_ERROR;
+            break;
+        }
+        rsp->msg.data_len = 0;
+        rsp->msg_data[rsp->msg.data_len++] = IPMI_PICMG_GRP_EXT;
 
 
+//	rsp->msg_data[len++] = IPMI_PICMG_GRP_EXT;                            // Device ID
+//	rsp->msg.data_len = len;
+//
+//	// Create task to LED support and not block main task
+////	xTaskCreate(vTaskLed, "LED", configMINIMAL_STACK_SIZE, &req->msg_data[3], tskIDLE_PRIORITY, NULL);
+//
+//	rsp->retcode = IPMI_CC_OK;
 }
 
 void ipmi_picmg_get_device_locator_record(struct ipmi_msg *req, struct ipmi_msg* rsp){
@@ -102,8 +167,7 @@ void ipmi_picmg_get_device_locator_record(struct ipmi_msg *req, struct ipmi_msg*
 	rsp->msg_data[len++] = 0;
 	rsp->msg_data[len++] = 0;
 	rsp->msg.data_len = len;
-    rsp->retcode = IPMI_CC_OK;
-
+	rsp->retcode = IPMI_CC_OK;
 }
 
 
