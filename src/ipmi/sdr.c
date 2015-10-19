@@ -598,6 +598,7 @@ void vTaskSensor( void *pvParmeters )
     sensor_data_entry_t * pDATA;
     I2C_ID_T i2c_bus_id;
     uint8_t i2c_address;
+    uint8_t carrier_type, board_version;
 
     uint16_t del;
 
@@ -609,6 +610,8 @@ void vTaskSensor( void *pvParmeters )
     } else {
             // fatal error
     }
+
+    afc_get_board_type(&carrier_type, &board_version);
 
     int i;
     for( ;; )
@@ -689,17 +692,20 @@ void vTaskSensor( void *pvParmeters )
 			pSDR = (SDR_type_01h_t *) sensor_array[i].sdr;
 			pDATA = sensor_array[i].data;
 			if (pSDR->sensornum == NUM_SDR_FMC2_12V) {
-			        fmc2_12v_stat = Chip_GPIO_ReadPortBit(LPC_GPIO, GPIO_EM_FMC2_P12V_PORT, GPIO_EM_FMC2_P12V_PIN);
-			        if(fmc2_12v_stat == false) {
-			            Chip_GPIO_SetPinState(LPC_GPIO, GPIO_EM_FMC2_P12V_PORT, GPIO_EM_FMC2_P12V_PIN, true);
-
-			            for(del = 0; del < 10000; del++) {}
-			        }
+                                if ((carrier_type == CARRIER_TYPE_AFC && board_version == 0x03) || (carrier_type == CARRIER_TYPE_AFCK)) {
+                                    fmc2_12v_stat = Chip_GPIO_ReadPortBit(LPC_GPIO, GPIO_EM_FMC2_P12V_PORT, GPIO_EM_FMC2_P12V_PIN);
+                                    if(fmc2_12v_stat == false) {
+                                        Chip_GPIO_SetPinState(LPC_GPIO, GPIO_EM_FMC2_P12V_PORT, GPIO_EM_FMC2_P12V_PIN, true);
+                                    }
+                                    vTaskDelay(500);
+                                }
 
 				pDATA->readout_value = INA222_readVolt(i2c_bus_id, 0x40, true) / 16;
 
-				if(fmc2_12v_stat == false)
-				        Chip_GPIO_SetPinState(LPC_GPIO, GPIO_EM_FMC2_P12V_PORT, GPIO_EM_FMC2_P12V_PIN, false);
+				if ((carrier_type == CARRIER_TYPE_AFC && board_version == 0x03) || (carrier_type == CARRIER_TYPE_AFCK)) {
+				    if(fmc2_12v_stat == false)
+				      Chip_GPIO_SetPinState(LPC_GPIO, GPIO_EM_FMC2_P12V_PORT, GPIO_EM_FMC2_P12V_PIN, false);
+				}
 
 				if (pDATA->readout_value > pSDR->lower_noncritical_thr) {
 					payload_send_message(PAYLOAD_MESSAGE_P12GOOD);

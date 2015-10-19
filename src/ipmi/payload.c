@@ -184,6 +184,7 @@ void vTaskPayload(void *pvParmeters) {
 	enum payload_state new_state = PAYLOAD_STATE_NO_CHANGE;
 	I2C_ID_T i2c_bus_id;
 	queue_payload_handle = xQueueCreate(16, sizeof(uint8_t));
+	uint8_t carrier_type, board_version;
 
 	TickType_t xDelay = 10;
 
@@ -197,10 +198,14 @@ void vTaskPayload(void *pvParmeters) {
 	TickType_t xLastWakeTime;
 	xLastWakeTime = xTaskGetTickCount();
 
+	afc_get_board_type(&carrier_type, &board_version);
+
 	// Setup Init_b as input
 	//Chip_GPIO_SetPinDIR(LPC_GPIO, 0, 19, false);
-	Chip_GPIO_SetPinDIR(LPC_GPIO, 0, 20, true);
-	Chip_GPIO_SetPinState(LPC_GPIO, 0, 20, true);
+	if ((carrier_type == CARRIER_TYPE_AFC && board_version == 0x03) || (carrier_type == CARRIER_TYPE_AFCK)) {
+	    Chip_GPIO_SetPinDIR(LPC_GPIO, 0, 20, true);
+	    Chip_GPIO_SetPinState(LPC_GPIO, 0, 20, true);
+        }
 
 	Chip_GPIO_SetPinDIR(LPC_GPIO, GPIO_PROGRAM_B_PORT, GPIO_PROGRAM_B_PIN, true);
 	Chip_GPIO_SetPinState(LPC_GPIO, GPIO_PROGRAM_B_PORT, GPIO_PROGRAM_B_PIN, true);
