@@ -263,13 +263,14 @@ void vTaskPayload(void *pvParmeters) {
 				if (afc_i2c_take_by_chipid(CHIP_ID_ADN, NULL, &i2c_bus_id, 100 ) == pdTRUE) {
 					adn4604_setup(i2c_bus_id);
 					afc_i2c_give(i2c_bus_id);
+					new_state = PAYLOAD_FPGA_BOOTING;
 				}
 
 				xDelay = 0;
 				//xDelay = 1000;
 				// xDelay = 0;
 				// Chip_GPIO_SetPinState(LPC_GPIO, GPIO_PROGRAM_B_PORT, GPIO_PROGRAM_B_PIN, true);
-				new_state = PAYLOAD_FPGA_BOOTING;
+				//new_state = PAYLOAD_FPGA_BOOTING;
 				break;
 			case PAYLOAD_FPGA_BOOTING:
 				if (QUIESCED_req == 1) {

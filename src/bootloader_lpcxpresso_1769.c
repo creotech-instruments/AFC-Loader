@@ -228,8 +228,7 @@ int main(void) {
 
     do_quiesced_init();
 
-//    xTaskCreate(LEDTask, "LED", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY, &xLedHandle );
-    xTaskCreate(LEDTask, "LEDk", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY, xLedHandle);
+    xTaskCreate(LEDTask, "LED", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY, &xLedHandle);
     xTaskCreate(vTaskIPMI, "IPMI", configMINIMAL_STACK_SIZE*5, NULL,  tskIDLE_PRIORITY, &xIPMIHandle );
     xTaskCreate(vTaskSensor, "Sensor", configMINIMAL_STACK_SIZE*2, NULL,  tskIDLE_PRIORITY, &xSensorHandle );
     xTaskCreate(vTaskPayload, "Payload", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY, &xPayloadHandle);
