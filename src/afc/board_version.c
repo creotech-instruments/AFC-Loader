@@ -99,13 +99,14 @@ struct i2c_bus_mapping i2c_bus_map_afc_v3[] = {
 		{ I2C_BUS_FPGA_ID,  I2C1,  0, 0 },
 };
 
+//@todo: I2C Mux need additional bit 4 to enable bus
 struct i2c_bus_mapping i2c_bus_map_afc_v3_1[] = {
-		{ I2C_BUS_FMC1_ID,  I2C2,  1, 1 },
-		{ I2C_BUS_FMC2_ID,  I2C2,  0, 1 },
+		{ I2C_BUS_FMC1_ID,  I2C2,  1 + 8, 1 },
+		{ I2C_BUS_FMC2_ID,  I2C2,  0 + 8, 1 },
 		{ I2C_BUS_CPU_ID,   I2C1, -1, 1 },
-		{ I2C_BUS_RTM_ID,   I2C2,  3, 1 },
-		{ I2C_BUS_CLOCK_ID, I2C2,  2, 1 },
-		{ I2C_BUS_FPGA_ID,  I2C2, -1, 1 },
+		{ I2C_BUS_RTM_ID,   I2C2,  3 + 8, 1 },
+		{ I2C_BUS_CLOCK_ID, I2C2,  2 + 8, 1 },
+		{ I2C_BUS_FPGA_ID,  I2C2, -1, 0 },
 };
 
 
@@ -133,7 +134,7 @@ struct i2c_chip_mapping i2c_chip_map[] = {
 		{CHIP_ID_INA_4,      I2C_BUS_CPU_ID, 0x44},
 		{CHIP_ID_INA_5,      I2C_BUS_CPU_ID, 0x45},
 
-		{CHIP_ID_ADN,	     I2C_BUS_CLOCK_ID, 0x4B},
+		{CHIP_ID_ADN,	     I2C_BUS_CPU_ID, 0x4B},
 		{CHIP_ID_SI57x,		 I2C_BUS_CLOCK_ID, 0x55},
 
 		{CHIP_ID_EEPROM_FMC1,	     I2C_BUS_FMC1_ID, 0x4B},
@@ -218,12 +219,13 @@ void afc_board_discover()
 			i2c_chip_map[CHIP_ID_MUX].bus_id = I2C_BUS_UNKNOWN_ID;
 			i2c_chip_map[CHIP_ID_MUX].i2c_address = 0x00;
 			p_i2c_busmap = i2c_bus_map_afc_v2;
-		} else if ((afc_board_info.carrier_type == CARRIER_TYPE_AFC && afc_board_info.board_version == 0x02) ||
-				afc_board_info.carrier_type == CARRIER_TYPE_AFCK) {
+		} else if ((afc_board_info.carrier_type == CARRIER_TYPE_AFC && afc_board_info.board_version == 0x02)) {
 			p_i2c_busmap = i2c_bus_map_afc_v3;
 			i2c_chip_map[CHIP_ID_MUX].bus_id = I2C_BUS_CPU_ID;
 			i2c_chip_map[CHIP_ID_MUX].i2c_address = 0x70;
-		} else if ((afc_board_info.carrier_type == CARRIER_TYPE_AFC && afc_board_info.board_version == 0x03)) {
+		//@todo: AFCK is compatible with AFCv3.1
+		} else if ((afc_board_info.carrier_type == CARRIER_TYPE_AFC && afc_board_info.board_version == 0x03)  ||
+                    afc_board_info.carrier_type == CARRIER_TYPE_AFCK) {
 			p_i2c_busmap = i2c_bus_map_afc_v3_1;
 			i2c_chip_map[CHIP_ID_MUX].bus_id = I2C_BUS_FPGA_ID;
 			i2c_chip_map[CHIP_ID_MUX].i2c_address = 0x70;
@@ -347,10 +349,19 @@ Bool afc_i2c_take_by_busid(uint8_t bus_id, I2C_ID_T * i2c_interface, TickType_t 
 			 .rxSz = 0,
 			 .rxBuff = NULL,
 		};
-		while (Chip_I2C_MasterTransfer(i2c_chip_map[CHIP_ID_MUX].bus_id, &xfer) == I2C_STATUS_ARBLOST) {
-		}
-		p_i2c_mux->state = p_i2c_bus->mux_bus;
+
+		//@todo: For AFCK this cause problem
+		//while (Chip_I2C_MasterTransfer(i2c_chip_map[CHIP_ID_MUX].bus_id, &xfer) == I2C_STATUS_ARBLOST) {
+		//}
+
 		*i2c_interface = p_i2c_mux->i2c_interface;
+
+		//@todo: For AFCK this fixed problem
+		while (Chip_I2C_MasterTransfer(*i2c_interface, &xfer) == I2C_STATUS_ARBLOST) {
+		}
+
+		p_i2c_mux->state = p_i2c_bus->mux_bus;
+//		*i2c_interface = p_i2c_mux->i2c_interface;
 		return true;
 	}
 
