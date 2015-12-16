@@ -31,6 +31,8 @@
 
 #define BOARD_VERSION_UNKNOWN 0xFF
 
+// * RTM support
+#define MMC_CONF_RTM
 
 #define I2CMODE_POOLING 1
 #define I2CMODE_INTERRUPT 0

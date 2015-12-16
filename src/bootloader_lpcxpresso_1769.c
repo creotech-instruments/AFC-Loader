@@ -44,6 +44,10 @@
 #include "ipmi/ipmi_handlers.h"
 #include "ipmi/ipmi_oem.h"
 #include "ipmi/payload.h"
+#include "ipmi/led.h"
+#ifdef MMC_CONF_RTM
+#include "ipmi/rtm.h"
+#endif
 #include "afc/board_version.h"
 
 #ifdef USE_FREERTOS == 1
@@ -59,20 +63,20 @@
 
 #ifdef FREERTOS_CONFIG_H
 
-void LEDTask( void *pvParmeters )
-{
-TickType_t xLastWakeTime;
-
-    xLastWakeTime = xTaskGetTickCount();
-
-    for( ;; )
-    {
-        // Wait for the next cycle.
-        vTaskDelayUntil( &xLastWakeTime, DELAY_PERIOD );
-        Board_LED_Toggle(0);
-       // Board_LED_Toggle(2);
-    }
-}
+//void LEDTask( void *pvParmeters )
+//{
+//TickType_t xLastWakeTime;
+//
+//    xLastWakeTime = xTaskGetTickCount();
+//
+//    for( ;; )
+//    {
+//        // Wait for the next cycle.
+//        vTaskDelayUntil( &xLastWakeTime, DELAY_PERIOD );
+//        Board_LED_Toggle(0);
+//       // Board_LED_Toggle(2);
+//    }
+//}
 #endif
 
 
@@ -150,9 +154,11 @@ int main(void) {
     SystemCoreClockUpdate();
     // Set up and initialize all required blocks and
     // functions related to the board hardware
-    Board_Init();
 
-    Board_LED_Set(1, true);
+    Board_Init();
+    LED_init();
+    //Board_LED_Set(0, true);
+    //Board_LED_Set(1, true);
     initializeDCDC();
 #endif
 #endif
@@ -169,6 +175,10 @@ int main(void) {
 	Chip_SSP_Enable(LPC_SSP1);
 	Chip_SSP_SetMaster(LPC_SSP1, 1);
 	create_ssp1_mutex();
+
+	Board_SPI_Init(true);
+	Chip_SPI_Init(LPC_SPI);
+
     DEBUGOUT("\r\nAFC/AFCK MMC");
 
 #else
@@ -182,8 +192,7 @@ int main(void) {
 	DEBUGOUT("This is free software, and you are welcome to redistribute it\r\n");
 	DEBUGOUT("under certain conditions;\r\n");
 
-
-    afc_board_discover();
+	afc_board_discover();
 
 //	NVIC_ClearPendingIRQ(EINT2_IRQn);
 //	NVIC_SetPriority(EINT2_IRQn, 0);
@@ -193,10 +202,9 @@ int main(void) {
 //	NVIC_EnableIRQ(EINT2_IRQn);
 
     Chip_GPIO_SetPinState(LPC_GPIO, 1, 22, false);
-	Chip_GPIO_SetPinDIR(LPC_GPIO, 1, 22, true);
-	//asm("nop");
-	Chip_GPIO_SetPinState(LPC_GPIO, 1, 22, true);
-
+    Chip_GPIO_SetPinDIR(LPC_GPIO, 1, 22, true);
+    //asm("nop");
+    Chip_GPIO_SetPinState(LPC_GPIO, 1, 22, true);
 
     IPMI_init();
     unsigned char ipmi_slave_addr = IPMB_init(I2C0);
@@ -223,10 +231,17 @@ int main(void) {
 
     do_quiesced_init();
 
-    xTaskCreate(LEDTask, "LED", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY, &xLedHandle );
-    xTaskCreate(vTaskIPMI, "IPMI", configMINIMAL_STACK_SIZE*5, NULL,  tskIDLE_PRIORITY, &xIPMIHandle );
-    xTaskCreate(vTaskSensor, "Sensor", configMINIMAL_STACK_SIZE, NULL,  tskIDLE_PRIORITY, &xSensorHandle );
+#ifdef MMC_CONF_RTM
+    RTM_init();
+#endif
+
+    xTaskCreate(LEDTask, "LED", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY, &xLedHandle);
+    xTaskCreate(vTaskIPMI, "IPMI", configMINIMAL_STACK_SIZE*5, NULL,  tskIDLE_PRIORITY + 1, &xIPMIHandle );
+    xTaskCreate(vTaskSensor, "Sensor", configMINIMAL_STACK_SIZE*2, NULL,  tskIDLE_PRIORITY, &xSensorHandle );
     xTaskCreate(vTaskPayload, "Payload", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY, &xPayloadHandle);
+#ifdef MMC_CONF_RTM
+//    xTaskCreate(vTaskRTM, "RTM", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY, &xRTMHandle);
+#endif
 
     vTaskStartScheduler();
 #else

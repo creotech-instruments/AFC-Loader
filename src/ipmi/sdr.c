@@ -27,36 +27,55 @@
 #include "board.h"
 #include "ipmi_oem.h"
 #include "payload.h"
+#ifdef MMC_CONF_RTM
+#include "rtm.h"
+#endif
 #include <afc/board_version.h>
 
+
 #define NUM_SENSOR 		4	/* Number of sensors */
-#define NUM_SDR         (NUM_SENSOR+1)   /* Number of SDRs */
+#ifdef MMC_CONF_RTM
+#define NUM_RTM_SDR             2
+#else
+#define NUM_RTM_SDR             0
+#endif
+#define NUM_SDR         (NUM_SENSOR+1+NUM_RTM_SDR)   /* Number of SDRs */
 
 #define HOT_SWAP_SENSOR     1
 #define NUM_SDR_FMC2_12V 	2
 #define NUM_SDR_FMC2_VADJ 	3
 #define NUM_SDR_FMC2_3V3 	4
-#define NUM_SDR_FMC1_12V 	5
-#define NUM_SDR_FMC1_VADJ 	6
-#define NUM_SDR_FMC1_3V3 	7
+//#define NUM_SDR_FMC1_12V 	5
+//#define NUM_SDR_FMC1_VADJ 	6
+//#define NUM_SDR_FMC1_3V3 	7
+#define NUM_SDR_FRU_ID          5
+#define NUM_SDR_RTM_SWAP        6
 
 
 #define HOT_SWAP        0xF2
 
 //module handle sensor status
-#define HOT_SWAP_CLOSED   0x00
-#define HOT_SWAP_OPENED   0x01
-#define HOT_SWAP_QUIESCED 0x02
+// Hot-swap state
+#define HOT_SWAP_CLOSED                 0x00
+#define HOT_SWAP_OPENED                 0x01
+#define HOT_SWAP_QUIESCED               0x02
+#define HOT_SWAP_BP_FAUL                0x03
+#define HOT_SWAP_BP_SDOWN               0x04
+#define HOT_SWAP_URTM_PRSENT            0x05
+#define HOT_SWAP_URTM_ABSENT            0x06
+#define HOT_SWAP_URTM_COMPATIBLE        0x07
+#define HOT_SWAP_URTM_INCOMPATIBLE      0x08
 
+// Hot-swap mask
 #define HOT_SWAP_STATE_HANDLE_CLOSED     (1 << 0)
 #define HOT_SWAP_STATE_HANDLE_OPENED     (1 << 1)
 #define HOT_SWAP_STATE_QUIESCED          (1 << 2)
-#define HOT_SWAP_STATE_BP_SDOWN          (1 << 3)
-#define HOT_SWAP_STATE_BP_FAIL           (1 << 4)
+#define HOT_SWAP_STATE_BP_FAIL           (1 << 3)
+#define HOT_SWAP_STATE_BP_SDOWN          (1 << 4)
 #define HOT_SWAP_STATE_URTM_PRSENT       (1 << 5)
 #define HOT_SWAP_STATE_URTM_ABSENT       (1 << 6)
 #define HOT_SWAP_STATE_URTM_COMPATIBLE   (1 << 7)
-#define HOT_SWAP_STATE_URTM_INCOMPATIBLE (1 << 0)
+#define HOT_SWAP_STATE_URTM_INCOMPATIBLE (1 << 8)
 
 
 static uint16_t INA222_readVolt(I2C_ID_T i2c, uint8_t address, bool raw);
@@ -65,6 +84,7 @@ static uint16_t INA222_readVolt(I2C_ID_T i2c, uint8_t address, bool raw);
 enum SDR_TYPE {
 	TYPE_01 = 0x1,
 	TYPE_02 = 0x2,
+	TYPE_11 = 0x11,
 	TYPE_12 = 0x12
 };
 
@@ -304,6 +324,74 @@ static const SDR_type_01h_t SDR_FMC2_P3V3 = {
  .IDstring = { 'F','M','C','2',' ', '+', '3', 'V', '3' } /* sensor string */
  };
 
+#ifdef MMC_CONF_RTM
+/* FRU Device IDs */
+static const SDR_type_11h_t SDR_RTM = {
+
+  .hdr.recID_LSB = NUM_SDR_FRU_ID,
+  .hdr.recID_MSB = 0x00,
+  .hdr.SDRversion = 0x51,
+  .hdr.rectype = TYPE_11,
+  .hdr.reclength = sizeof(SDR_type_11h_t) - sizeof(SDR_entry_hdr_t),
+
+  .devAddr = 0x00, /* i2c address, -> SDR_Init */
+  .fruID = 0x01, /* sensor owner LUN */
+  .accessLUN = 0x80, /* sensor number */
+  .channel_num = 0x00,
+
+  /* record body bytes */
+  .devType = 0x00,
+  .devTypeModifier = 0x10,
+  .entityID = 0xC0, /* entity id: RTM Module */
+  .entityinstance = 0x00, /* entity instance -> SDR_Init */
+  .reserved1 = 0x00,
+  .OEM = 0x00, /* OEM reserved */
+  .IDtypelen = 0xC7, /* 8 bit ASCII, number of bytes */
+  .IDstring = { 'R', 'T', 'M', ' ', 'S', 'F', 'P' } /* sensor string */
+};
+
+/* Hot-Swap sensor */
+static const SDR_type_02h_t SDR_RTM_HOT_SWAP = {
+
+  .hdr.recID_LSB = NUM_SDR_RTM_SWAP,
+  .hdr.recID_MSB = 0x00,
+  .hdr.SDRversion = 0x51,
+  .hdr.rectype = TYPE_02,
+  .hdr.reclength = sizeof(SDR_type_02h_t) - sizeof(SDR_entry_hdr_t),
+
+  .ownerID = 0x00, /* i2c address, -> SDR_Init */
+  .ownerLUN = 0x00, /* sensor owner LUN */
+  .sensornum = NUM_SDR_RTM_SWAP, /* sensor number */
+
+  /* record body bytes */
+  .entityID = 0xC0, /* entity id: RTM Module */
+  .entityinstance = 0x00, /* entity instance -> SDR_Init */
+  .sensorinit = 0x03, /* init: event generation + scanning enabled */
+  .sensorcap = 0xc1, /* capabilities: auto re-arm,*/
+  .sensortype = HOT_SWAP, /* sensor type: HOT SWAP*/
+  .event_reading_type = 0x6f, /* sensor reading*/
+  .assertion_event_mask = { 0x07, /* LSB assert event mask: 3 bit value */
+  0x00 }, /* MSB assert event mask */
+  .deassertion_event_mask = { 0x07, /* LSB deassert event mask: 3 bit value */
+  0x00 }, /* MSB deassert event mask */
+  .readable_threshold_mask = 0x00, /* LSB: readabled Threshold mask: all thresholds are readabled:  */
+  .settable_threshold_mask = 0x00, /* MSB: setabled Threshold mask: all thresholds are setabled: */
+  .sensor_units_1 = 0xc0, /* sensor units 1 :*/
+  .sensor_units_2 = 0x00, /* sensor units 2 :*/
+  .sensor_units_3 = 0x00, /* sensor units 3 :*/
+  .record_sharing[0] = 0x00, /* Linearization */
+  .record_sharing[1] = 0x00, /* Linearization */
+  .pos_thr_hysteresis = 0x00, /* positive going Threshold hysteresis value */
+  .neg_thr_hysteresis = 0x00, /* negative going Threshold hysteresis value */
+  .reserved1 = 0x00, /* reserved */
+  .reserved2 = 0x00, /* reserved */
+  .reserved3 = 0x00, /* reserved */
+  .OEM = 0x00, /* OEM reserved */
+  .IDtypelen = 0xcc, /* 8 bit ASCII, number of bytes */
+  .IDstring = { 'R', 'T', 'M', ' ', 'H', 'O', 'T', '_', 'S', 'W', 'A', 'P' } /* sensor string */
+};
+#endif
+
 struct sensor_;
 
 typedef void (*sdr_callback_t)(const struct sensor_ * params);
@@ -347,13 +435,23 @@ void sdr_sensor_readout_INA222(const struct sensor_ * params) {
 
 }
 
+#ifdef MMC_CONF_RTM
+void sdr_redout_rtm_io(const struct sensor_ * params) {
+
+}
+#endif
+
 sensor_data_entry_t sdrData[NUM_SDR];
 const sensor_t const sensor_array[NUM_SDR]  = {
 	{ TYPE_12, (void *) & SDR0,          sizeof(SDR0),          &sdrData[0] },
 	{ TYPE_02, (void *) & SDR_HOT_SWAP,  sizeof(SDR_HOT_SWAP),  &sdrData[1] },
 	{ TYPE_01, (void *) & SDR_FMC2_12V,  sizeof(SDR_FMC2_12V),  &sdrData[2] },
 	{ TYPE_01, (void *) & SDR_FMC2_VADJ, sizeof(SDR_FMC2_VADJ), &sdrData[3], sdr_sensor_readout_INA222,  (void *)&PARAMS_FMC2_VADJ},
-	{ TYPE_01, (void *) & SDR_FMC2_P3V3, sizeof(SDR_FMC2_P3V3), &sdrData[4], sdr_sensor_readout_INA222,  (void *)&PARAMS_FMC2_P3V3}
+	{ TYPE_01, (void *) & SDR_FMC2_P3V3, sizeof(SDR_FMC2_P3V3), &sdrData[4], sdr_sensor_readout_INA222,  (void *)&PARAMS_FMC2_P3V3},
+#ifdef MMC_CONF_RTM
+	{ TYPE_11, (void *) & SDR_RTM,       sizeof(SDR_RTM),       &sdrData[5] },
+	{ TYPE_02, (void *) & SDR_RTM_HOT_SWAP, sizeof(SDR_RTM_HOT_SWAP), &sdrData[6] }
+#endif
 };
 
 // @todo: check if valid
@@ -368,6 +466,9 @@ size_t sdr_get_size_by_type(enum SDR_TYPE type){
 		case TYPE_02:
 			return sizeof(SDR_type_02h_t);
 			break;
+		case TYPE_11:
+		        return sizeof(SDR_type_11h_t);
+		        break;
 		case TYPE_12:
 			return sizeof(SDR_type_12h_t);
 			break;
@@ -391,7 +492,7 @@ void ipmi_se_get_sdr_info(struct ipmi_msg *req, struct ipmi_msg* rsp) {
 	int len = rsp->msg.data_len;
 
 	if (req->msg.data_len == 0 || req->msg_data[0] == 0) {
-		rsp->msg_data[len++] = NUM_SENSOR;
+		rsp->msg_data[len++] = NUM_SENSOR + NUM_RTM_SDR;
 	} else {
 		rsp->msg_data[len++] = NUM_SDR;
 	}
@@ -568,11 +669,13 @@ static void INA222_init(I2C_ID_T i2c, uint8_t address)
 
 static uint16_t INA222_readVolt(I2C_ID_T i2c, uint8_t address, bool raw) {
 	uint8_t ch[2];
+
 	Chip_I2C_MasterCmdRead(i2c, address, INA220_BUS_REG, ch, 2);
 	uint16_t tmpVal = 0.0;
 	tmpVal = (0x1fE0 & (ch[0] << 5)) | (0x1f & (ch[1] >> 3));
 	if (raw == false)
 		tmpVal = tmpVal * 4;
+
 	return tmpVal;
 }
 
@@ -586,13 +689,20 @@ void vTaskSensor( void *pvParmeters )
     sensor_data_entry_t * pDATA;
     I2C_ID_T i2c_bus_id;
     uint8_t i2c_address;
+    uint8_t carrier_type, board_version;
 
-	if (afc_i2c_take_by_chipid(CHIP_ID_INA_0, &i2c_address,&i2c_bus_id, (TickType_t) 0 ) == pdTRUE ) {
-		INA222_init(i2c_bus_id, i2c_address);
-		afc_i2c_give(i2c_bus_id);
-	} else {
-		// fatal error
-	}
+    uint16_t del;
+
+    bool fmc2_12v_stat = false;
+
+    if (afc_i2c_take_by_chipid(CHIP_ID_INA_0, &i2c_address,&i2c_bus_id, (TickType_t) 0 ) == pdTRUE ) {
+            INA222_init(i2c_bus_id, i2c_address);
+            afc_i2c_give(i2c_bus_id);
+    } else {
+            // fatal error
+    }
+
+    afc_get_board_type(&carrier_type, &board_version);
 
     int i;
     for( ;; )
@@ -620,6 +730,28 @@ void vTaskSensor( void *pvParmeters )
     		    IPMI_event_queue_append(pmsg);
 
     		}
+#ifdef MMC_CONF_RTM
+    		else if (payload_ctrl_code == FRU_CTLCODE_RTM_QUIESCE) {
+                    sensor_array[NUM_SDR_RTM_SWAP].data->comparator_status |= HOT_SWAP_STATE_QUIESCED;
+
+                    struct ipmi_msg *pmsg = IPMI_alloc();
+                    struct ipmi_ipmb_addr *dst_addr =(struct ipmi_ipmb_addr *) &pmsg->daddr;
+                    struct ipmi_ipmb_addr *src_addr =(struct ipmi_ipmb_addr *) &pmsg->saddr;
+                    IPMI_evet_get_address(src_addr, dst_addr);
+
+                    pmsg->msg.lun = 0;
+                    pmsg->msg.netfn = NETFN_SE;
+                    pmsg->msg.cmd = IPMI_PLATFORM_EVENT_CMD;
+                    int data_len = 0;
+                    pmsg->msg_data[data_len++] = 0x04;
+                    pmsg->msg_data[data_len++] = 0xf2;
+                    pmsg->msg_data[data_len++] = NUM_SDR_RTM_SWAP;
+                    pmsg->msg_data[data_len++] = 0x6f;
+                    pmsg->msg_data[data_len++] = HOT_SWAP_QUIESCED; // hot swap state
+                    pmsg->msg.data_len = data_len;
+                    IPMI_event_queue_append(pmsg);
+    		}
+#endif
     		continue;
     	}
     	/* @todo: add real delay checking */
@@ -635,18 +767,21 @@ void vTaskSensor( void *pvParmeters )
 				//{ 2, 13, IOCON_MODE_INACT | IOCON_FUNC0 }, /* MOD HANDLE */
 				bool tmp_val = Chip_GPIO_GetPinState(LPC_GPIO, 2, 13);
 				uint8_t new_flag = 0;
+				uint8_t new_status = 0;
 				uint8_t old_flag = pDATA->comparator_status & 0x03;
 
 				if (tmp_val) {
 					// handle opened
-					new_flag = HOT_SWAP_STATE_HANDLE_OPENED;
+					//new_flag = HOT_SWAP_STATE_HANDLE_OPENED;
+				    new_status = HOT_SWAP_OPENED;
 				} else {
 					// handle closed
-					new_flag = HOT_SWAP_STATE_HANDLE_CLOSED;
+//					new_flag = HOT_SWAP_STATE_HANDLE_CLOSED;
+				    new_status = HOT_SWAP_CLOSED;
 				}
 
+				new_flag = (1 << new_status);
 				if (new_flag != old_flag) {
-					/* todo add allocation check */
 	    		    struct ipmi_msg *pmsg = IPMI_alloc();
 	    		    struct ipmi_ipmb_addr *dst_addr =(struct ipmi_ipmb_addr *) &pmsg->daddr;
 	    		    struct ipmi_ipmb_addr *src_addr =(struct ipmi_ipmb_addr *) &pmsg->saddr;
@@ -661,7 +796,7 @@ void vTaskSensor( void *pvParmeters )
 	    		    pmsg->msg_data[data_len++] = 0xf2;
 	    		    pmsg->msg_data[data_len++] = pSDR->sensornum;
 	    		    pmsg->msg_data[data_len++] = 0x6f;
-	    		    pmsg->msg_data[data_len++] = (new_flag >> 1); // hot swap state
+	    		    pmsg->msg_data[data_len++] = new_status; //(new_flag >> 1); // hot swap state
 	    		    pmsg->msg.data_len = data_len;
 	    		    IPMI_event_queue_append(pmsg);
 
@@ -674,7 +809,20 @@ void vTaskSensor( void *pvParmeters )
 			pSDR = (SDR_type_01h_t *) sensor_array[i].sdr;
 			pDATA = sensor_array[i].data;
 			if (pSDR->sensornum == NUM_SDR_FMC2_12V) {
+                                if ((carrier_type == CARRIER_TYPE_AFC && board_version == 0x03) || (carrier_type == CARRIER_TYPE_AFCK)) {
+                                    fmc2_12v_stat = Chip_GPIO_ReadPortBit(LPC_GPIO, GPIO_EM_FMC2_P12V_PORT, GPIO_EM_FMC2_P12V_PIN);
+                                    if(fmc2_12v_stat == false) {
+                                        Chip_GPIO_SetPinState(LPC_GPIO, GPIO_EM_FMC2_P12V_PORT, GPIO_EM_FMC2_P12V_PIN, true);
+                                    }
+                                    vTaskDelay(500);
+                                }
+
 				pDATA->readout_value = INA222_readVolt(i2c_bus_id, 0x40, true) / 16;
+
+				if ((carrier_type == CARRIER_TYPE_AFC && board_version == 0x02) || (carrier_type == CARRIER_TYPE_AFCK)) {
+				    if(fmc2_12v_stat == false)
+				      Chip_GPIO_SetPinState(LPC_GPIO, GPIO_EM_FMC2_P12V_PORT, GPIO_EM_FMC2_P12V_PIN, false);
+				}
 
 				if (pDATA->readout_value > pSDR->lower_noncritical_thr) {
 					payload_send_message(PAYLOAD_MESSAGE_P12GOOD);
@@ -683,11 +831,85 @@ void vTaskSensor( void *pvParmeters )
 				}
 			}
 
-			for (i=3; i<5; i++) {
+			for (i=3; i<NUM_SDR; i++) {
 				if (sensor_array[i].callback_function == NULL) continue;
 				sensor_array[i].callback_function(&sensor_array[i]);
 			}
 
+#ifdef MMC_CONF_RTM
+			// RTM Hot Swap
+			i = 6;
+                        pSDR = (SDR_type_01h_t *) sensor_array[i].sdr;
+                        pDATA = sensor_array[i].data;
+                        if (pSDR->sensornum == NUM_SDR_RTM_SWAP) {
+                                uint8_t new_status = 0;
+                                uint16_t old_flag = pDATA->comparator_status;
+                                uint16_t new_flag = old_flag;
+
+                                if(rtm_check_presence()) {
+                                    if((old_flag & HOT_SWAP_STATE_URTM_PRSENT) != HOT_SWAP_STATE_URTM_PRSENT) {
+                                        new_status = HOT_SWAP_URTM_PRSENT;
+                                        new_flag = (1 << new_status);
+                                    }
+                                }
+                                else {
+                                    new_status = HOT_SWAP_URTM_ABSENT;
+                                    new_flag = (1 << new_status);
+                                }
+
+                                if((new_status == 0) && ((old_flag & HOT_SWAP_STATE_URTM_PRSENT) == HOT_SWAP_STATE_URTM_PRSENT)) {
+                                    if(rtm_check_compatibility()) {
+                                         if((old_flag & HOT_SWAP_STATE_URTM_COMPATIBLE) != HOT_SWAP_STATE_URTM_COMPATIBLE) {
+                                             new_status = HOT_SWAP_URTM_COMPATIBLE;
+                                             new_flag |= (1 << new_status);
+                                         }
+                                    }
+                                    else {
+                                         new_status = HOT_SWAP_URTM_INCOMPATIBLE;
+                                         new_flag |= (1 << new_status);
+                                    }
+                                }
+
+                                if((new_status == 0) && ((old_flag & (HOT_SWAP_STATE_URTM_PRSENT | HOT_SWAP_STATE_URTM_COMPATIBLE)) == (HOT_SWAP_STATE_URTM_PRSENT | HOT_SWAP_STATE_URTM_COMPATIBLE))) {
+                                    if(rtm_check_handle()) {
+                                        if((old_flag & HOT_SWAP_STATE_HANDLE_CLOSED) != HOT_SWAP_STATE_HANDLE_CLOSED) {
+                                            new_status = HOT_SWAP_CLOSED;
+                                            new_flag &= ~(1 << HOT_SWAP_OPENED);
+                                            new_flag |= (1 << new_status);
+
+                                            //payload_send_message(PAYLOAD_MESSAGE_RTM_PP_ON);
+                                        }
+                                    }
+                                    else {
+                                        new_status = HOT_SWAP_OPENED;
+                                        new_flag &= ~(1 << HOT_SWAP_CLOSED);
+                                        new_flag |= (1 << new_status);
+                                    }
+                                }
+
+                                if(new_flag != old_flag) {
+                                    struct ipmi_msg *pmsg = IPMI_alloc();
+                                    struct ipmi_ipmb_addr *dst_addr =(struct ipmi_ipmb_addr *) &pmsg->daddr;
+                                    struct ipmi_ipmb_addr *src_addr =(struct ipmi_ipmb_addr *) &pmsg->saddr;
+
+                                    IPMI_evet_get_address(src_addr, dst_addr);
+
+                                    pmsg->msg.lun = 0;
+                                    pmsg->msg.netfn = NETFN_SE;
+                                    pmsg->msg.cmd = IPMI_PLATFORM_EVENT_CMD;
+                                    int data_len = 0;
+                                    pmsg->msg_data[data_len++] = 0x04;
+                                    pmsg->msg_data[data_len++] = 0xf2;
+                                    pmsg->msg_data[data_len++] = pSDR->sensornum;
+                                    pmsg->msg_data[data_len++] = 0x6f;
+                                    pmsg->msg_data[data_len++] = new_status; //(new_flag >> 1); // hot swap state
+                                    pmsg->msg.data_len = data_len;
+                                    IPMI_event_queue_append(pmsg);
+
+                                    pDATA->comparator_status = new_flag;
+                                }
+                        }
+#endif
 			afc_i2c_give(i2c_bus_id);
 
     	}

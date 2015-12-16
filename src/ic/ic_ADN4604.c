@@ -23,11 +23,34 @@
 
 #include "ic_ADN4604.h"
 
+void adn4604_status(I2C_ID_T i2c_bus) {
+    I2C_XFER_T xfer = { 0 };
+    uint8_t tx_buf[20];
+    uint8_t rx_buf[20];
+    int i = 0;
+
+    tx_buf[i++] = 0xB0;
+
+    xfer.slaveAddr = 0x4B;
+    xfer.txBuff = tx_buf;
+    xfer.txSz = i;
+    xfer.rxBuff = rx_buf;
+    xfer.rxSz = 8;
+
+    while (Chip_I2C_MasterTransfer(i2c_bus, &xfer) == I2C_STATUS_ARBLOST) {
+    }
+}
+
 void adn4604_setup(I2C_ID_T i2c_bus) {
 	I2C_XFER_T xfer = { 0 };
 	uint8_t tx_buf[20];
 	uint8_t rx_buf[20];
 	int i = 0;
+
+	// Update PIN go High
+	Chip_GPIO_SetPinDIR(LPC_GPIO, 1, 26, true);
+	Chip_GPIO_SetPinState(LPC_GPIO, 1, 26, true);
+
 	tx_buf[i++] = 0x90;
 	tx_buf[i++] = 0xef;
 	tx_buf[i++] = 0xcd;

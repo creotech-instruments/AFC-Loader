@@ -88,13 +88,32 @@ extern "C" {
 #define LEDS_LED4           0x08
 #define LEDS_NO_LEDS        0x00
 
+// Added LED port/pin mapping according to LNLS definition
+/* Led pin definitions */
+#define LEDBLUE_PORT    1
+#define LEDBLUE_PIN     9
+#define LEDGREEN_PORT   1
+#define LEDGREEN_PIN    10
+#define LEDRED_PORT     1
+#define LEDRED_PIN      25
+#define LED_PIN_FUNC    0
 
-#define LED0_GPIO_PORT_NUM      1
-#define LED0_GPIO_BIT_NUM       9
-#define LED1_GPIO_PORT_NUM      1
-#define LED1_GPIO_BIT_NUM      10
-#define LED2_GPIO_PORT_NUM      1
-#define LED2_GPIO_BIT_NUM      25
+#define gpio_read_pin( port, pin )             Chip_GPIO_GetPinState( LPC_GPIO, port, pin )
+#define gpio_read_port( port )                 Chip_GPIO_GetPortValue( LPC_GPIO, port )
+#define gpio_set_pin( port, pin )              Chip_GPIO_SetPinOutHigh( LPC_GPIO, port, pin )
+#define gpio_set_port( port, mask )            Chip_GPIO_SetPortOutHigh( LPC_GPIO, port, mask )
+#define gpio_clr_pin( port, pin )              Chip_GPIO_SetPinOutLow( LPC_GPIO, port, pin )
+#define gpio_clr_port( port, mask )            Chip_GPIO_SetPortOutLow( LPC_GPIO, port, mask )
+#define gpio_pin_toggle( port, pin )           Chip_GPIO_SetPinToggle( LPC_GPIO, port, pin )
+#define gpio_set_pin_state( port, pin, state ) Chip_GPIO_SetPinState( LPC_GPIO, port, pin, state )
+#define gpio_set_pin_dir( port, pin, dir )     Chip_GPIO_SetPinDIR( LPC_GPIO, port, pin, dir )
+
+#define LED0_GPIO_PORT_NUM      LEDBLUE_PORT
+#define LED0_GPIO_BIT_NUM       LEDBLUE_PIN
+#define LED1_GPIO_PORT_NUM      LEDGREEN_PORT
+#define LED1_GPIO_BIT_NUM       LEDGREEN_PIN
+#define LED2_GPIO_PORT_NUM      LEDRED_PORT
+#define LED2_GPIO_BIT_NUM       LEDRED_PIN
 
 #define GA_TEST_PORT  1
 #define GA0_PORT      1

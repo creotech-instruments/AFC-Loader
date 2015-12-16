@@ -29,6 +29,7 @@ void ipmi_picmg_cmd_fru_control(struct ipmi_msg *req, struct ipmi_msg* rsp);
 void ipmi_picmg_set_fru_led_state(struct ipmi_msg *req, struct ipmi_msg* rsp);
 void ipmi_picmg_get_device_locator_record(struct ipmi_msg *req, struct ipmi_msg* rsp);
 void ipmi_picmg_cmd_set_amc_port_state(struct ipmi_msg *req, struct ipmi_msg* rsp);
+void ipmi_picmg_cmd_set_power_level(struct ipmi_msg *req, struct ipmi_msg* rsp);
 
 
 void ipmi_se_set_event_reciever(struct ipmi_msg *req, struct ipmi_msg* rsp);

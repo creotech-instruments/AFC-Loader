@@ -40,7 +40,9 @@ static const ipmiFuncEntry_t const ipmiEntries[] = {
 		{ NETFN_GRPEXT,  IPMI_PICMG_CMD_FRU_CONTROL, ipmi_picmg_cmd_fru_control},
 		{ NETFN_GRPEXT,  IPMI_PICMG_CMD_SET_FRU_LED_STATE, ipmi_picmg_set_fru_led_state},
 		{ NETFN_GRPEXT,  IPMI_PICMG_CMD_GET_DEVICE_LOCATOR_RECORD, ipmi_picmg_get_device_locator_record},
+		{ NETFN_GRPEXT,  IPMI_PICMG_CMD_SET_POWER_LEVEL, ipmi_picmg_cmd_set_power_level},
 		{ NETFN_GRPEXT,  IPMI_PICMG_CMD_SET_AMC_PORT_STATE, ipmi_picmg_cmd_set_amc_port_state },
+
 		//{ NETFN_GRPEXT,  IPMI_PICMG_CMD_GET_TELCO_ALARM_CAPABILITY, ipmi_picmg_cmd_get_telco_alarm_capability},
 		{ NETFN_SE,      IPMI_SET_EVENT_RECEIVER_CMD, ipmi_se_set_event_reciever},
 		{ NETFN_SE,      IPMI_GET_DEVICE_SDR_INFO_CMD, ipmi_se_get_sdr_info},

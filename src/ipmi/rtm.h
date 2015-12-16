@@ -1,9 +1,9 @@
 /*
- * ic_ADN4604.h
+ * rtm.h
  *
  *   AFCIPMI  --
  *
- *   Copyright (C) 2015  Piotr Miedzik <P.Miedzik@gsi.de>
+ *   Copyright (C) 2015  Marcin Krzewski  <marcin.krzewski@creotech.pl>
  *
  *   This program is free software: you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -19,12 +19,21 @@
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef IC_IC_ADN4604_H_
-#define IC_IC_ADN4604_H_
+#ifndef IPMI_RTM_H_
+#define IPMI_RTM_H_
 
-#include "i2c_17xx_40xx.h"
+#include <stdint.h>
+#include "FreeRTOS.h"
 
-void adn4604_status(I2C_ID_T i2c_bus);
-void adn4604_setup(I2C_ID_T i2c_bus);
+bool rtm_check_presence(void);
+bool rtm_check_compatibility(void);
+bool rtm_check_handle(void);
+bool rtm_io_init(void);
+void rtm_led_ctrl(uint8_t led_id, uint8_t on);
+void rtm_write_eeprom(uint16_t addr, uint8_t* buf, uint8_t len);
+void rtm_read_eeprom(uint16_t addr, uint8_t* buf, uint8_t len);
 
-#endif /* IC_IC_ADN4604_H_ */
+bool RTM_init(void);
+void vTaskRTM(void *pvParmeters);
+
+#endif //IPMI_RTM_H_

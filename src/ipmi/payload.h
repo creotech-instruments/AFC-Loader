@@ -22,6 +22,8 @@
 #ifndef IPMI_PAYLOAD_H_
 #define IPMI_PAYLOAD_H_
 
+#include <afc/board_version.h>
+
 enum payload_state {
 	PAYLOAD_NO_POWER = 0,
 	PAYLOAD_SWITCHING_ON = 1,
@@ -36,6 +38,16 @@ enum payload_state {
 	PAYLOAD_POWER_FAIL = 255
 };
 
+#ifdef MMC_CONF_RTM
+enum rtm_state {
+    RTM_NO_POWER = 0,
+    RTM_SWITCHING_ON,
+    RTM_POWER_GOOD,
+    RTM_SWITCHING_OFF,
+    RTM_QUISCED
+};
+#endif
+
 enum payload_message {
 	PAYLOAD_MESSAGE_P12GOOD = 0,
 	PAYLOAD_MESSAGE_P12GOODn = 1,
@@ -45,13 +57,17 @@ enum payload_message {
 	PAYLOAD_MESSAGE_WARM_RST = 5,
 	PAYLOAD_MESSAGE_REBOOT   = 6,
 	PAYLOAD_MESSAGE_QUIESCED = 7,
-
+#ifdef MMC_CONF_RTM
+	PAYLOAD_MESSAGE_RTM_PP_ON = 8,
+	PAYLOAD_MESSAGE_RTM_QUIESCED = 9,
+#endif
 };
 
 #define FRU_CTLCODE_COLD_RST          (0)       // FRU Control command cold reset code
 #define FRU_CTLCODE_WARM_RST          (1)       // FRU Control command warm reset code
 #define FRU_CTLCODE_REBOOT            (2)       // FRU Control command reboot code
 #define FRU_CTLCODE_QUIESCE           (4)       // FRU Control command quiesce code
+#define FRU_CTLCODE_RTM_QUIESCE       (5)       // FRU Control command RTM quiesce code
 
 // @todo: move to board definition
 
@@ -74,7 +90,6 @@ enum payload_message {
 #define GPIO_EN_FMC2_PVADJ_PORT 1
 #define GPIO_EN_FMC2_PVADJ_PIN 28
 
-
 #define GPIO_EN_P3V3_PORT       1
 #define GPIO_EN_P3V3_PIN       27
 #define GPIO_EN_1V5_VTT_PORT    1
@@ -89,6 +104,8 @@ enum payload_message {
 #define GPIO_PGOOD_P1V0_PIN    26
 #define GPIO_PGOOD_P1V0_PORT    3
 
+#define GPIO_EN_RTM_PORT        1
+#define GPIO_EN_RTM_PIN        30
 
 void payload_send_message(uint8_t msg);
 void vTaskPayload(void *pvParmeters);

@@ -118,6 +118,24 @@ typedef struct {
 
 typedef struct {
   SDR_entry_hdr_t hdr;
+  // RECORD KEY BYTES
+  uint8_t devAddr;                                                      // 6
+  uint8_t fruID;                                                        // 7
+  uint8_t accessLUN;                                                    // 8
+  uint8_t channel_num;                                                  // 9
+  // record body bytes
+  uint8_t reserved1;                                                    // 10
+  uint8_t devType;                                                      // 11
+  uint8_t devTypeModifier;                                              // 12
+  uint8_t entityID;                                                     // 13
+  uint8_t entityinstance;                                               // 14
+  uint8_t OEM;                                                          // 15
+  uint8_t IDtypelen;                                                    // 16
+  char IDstring[16];                                                    // 17-32 (0x40 length max)
+} SDR_type_11h_t;
+
+typedef struct {
+  SDR_entry_hdr_t hdr;
   uint8_t slaveaddr;
   uint8_t chnum;
   uint8_t power_notification_global_init;
@@ -137,7 +155,7 @@ typedef struct {
   uint8_t entityinstance;
 
   uint8_t readout_value;
-  uint8_t comparator_status;
+  uint16_t comparator_status;
 
   /*uint8_t event_msg_ctl;
 
