@@ -104,7 +104,7 @@ static const SDR_type_12h_t  SDR0 = {
 		.reserved[0] = 0x00,
 		.reserved[1] = 0x00,
 		.reserved[2] = 0x00,
-		.entityID = 0x60, //0x60 | ((0x76-0x70) >>1), // Entry ID?
+		.entityID = 0xC1, //0x60 | ((0x76-0x70) >>1), // Entry ID?
 		.entityinstance = 0x00,
 		.OEM = 0x00,
 		.IDtypelen = 0xcc, /* 8 bit ASCII, number of bytes */
@@ -125,7 +125,7 @@ static const SDR_type_12h_t  SDR0 = {
 .sensornum = HOT_SWAP_SENSOR, /* sensor number */
 
 /* record body bytes */
-.entityID = 0x60, /* entity id: AMC Module */
+.entityID = 0xC1, /* entity id: AMC Module */
 .entityinstance = 0x00, /* entity instance -> SDR_Init */
 .sensorinit = 0x03, /* init: event generation + scanning enabled */
 .sensorcap = 0xc1, /* capabilities: auto re-arm,*/
@@ -166,7 +166,7 @@ static const SDR_type_12h_t  SDR0 = {
  .sensornum = NUM_SDR_FMC2_12V, /* sensor number */
 
  /* record body bytes */
- .entityID = 0x60, /* entity id: AMC Module */
+ .entityID = 0xC1, /* entity id: AMC Module */
  .entityinstance = 0x00, /* entity instance -> SDR_Init */
  .sensorinit = 0x7f, /* init: event generation + scanning enabled */
  .sensorcap = 0x58, /* capabilities: auto re-arm,*/
@@ -223,7 +223,7 @@ static const SDR_type_01h_t SDR_FMC2_VADJ = {
  .sensornum = NUM_SDR_FMC2_VADJ, /* sensor number */
 
  /* record body bytes */
- .entityID = 0x60, /* entity id: AMC Module */
+ .entityID = 0xC1, /* entity id: AMC Module */
  .entityinstance = 0x00, /* entity instance -> SDR_Init */
  .sensorinit = 0x7f, /* init: event generation + scanning enabled */
  .sensorcap = 0x58, /* capabilities: auto re-arm,*/
@@ -281,7 +281,7 @@ static const SDR_type_01h_t SDR_FMC2_P3V3 = {
  .sensornum = NUM_SDR_FMC2_3V3, /* sensor number */
 
  /* record body bytes */
- .entityID = 0x60, /* entity id: AMC Module */
+ .entityID = 0xC1, /* entity id: AMC Module */
  .entityinstance = 0x00, /* entity instance -> SDR_Init */
  .sensorinit = 0x7f, /* init: event generation + scanning enabled */
  .sensorcap = 0x58, /* capabilities: auto re-arm,*/
