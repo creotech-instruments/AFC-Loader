@@ -49,7 +49,7 @@ const char default_fru[136] __attribute__ ((section (".FRU"))) = {
 0xC0, 0x02, 0x06, 0x45 /*Data CRC:0x1E*/, 0xF3/*HDR CRC: 0x1A*/, 0x5A, 0x31, 0x00, 0x16, 0x00, 0x1A, /*0x41,*/
 
 // Point-to-Point Connectivity record
-0xC0, 0x82, 0x10, 0x50, 0x5E, // Multirecord header
+0xC0, 0x82, 0x10, 0x60, 0x4E, // Multirecord header
 0x5A, 0x31, 0x00, //Manufacturer ID (in this case PICMG)
 0x19, //PICMG Record ID. For the AMC Point-to-Point Connectivity record, the value 19h must be used.
 0x00, //Record Format Version. For this specification, the value 00h must be used.
@@ -60,7 +60,7 @@ const char default_fru[136] __attribute__ ((section (".FRU"))) = {
 //AMC Link Descriptors
 0x00, // Channel ID
 0x2F, // Lane 0, Lane 1, Lane 2, Lane 3; AMC.1 PCI Express
-0x30, // gen2 SSC
+0x20, // gen2 no SSC
 0x00,
 0xFD, // AMC Asymmetric Match --- Matches with '10b'
 };
